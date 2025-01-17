@@ -43,6 +43,30 @@ Die Datenbank wollte ich nicht auf dem Web-Server betreiben, sondern es sollte a
 
 In der Webseite selbst sollte man Accounts haben, also sich einloggen, ausloggen und registrieren können. Diese
 Funktion war bereits in Django programmiert worden, also musste ich diese nur mit der Template Sprache in die
-HTML-Seiten einfügen. Zu einer gewöhnlichen Seite, die Kleider verkauft, gehören auch viele DB-Modelle / Objekte. 
+HTML-Seiten einfügen. Zu einer gewöhnlichen Seite, die Kleider verkauft, gehören auch viele DB-Modelle / Objekte.
 
-##
+## Dockerserver
+
+Um die Infrastruktur simpel zu behalten, arbeite ich mit zwei Dockerservern / Ein Server, der Docker und Portainer installiert hat und
+worauf Container für die Datenbank und für die Webseite erstellt werden. Der Andere Dockerserver dient zu Backupzwecken. Auf dem Backup Dockerserver werde ich Der Vorteil dieses Vorgehens ist, dass ich dann nur bei einem Server einen Backup durchführen
+muss und dass ich auch dynamisch nach Lust und Laune auch zusätzliche Container erstellen, falls ich beispielsweise
+einen Mailserver brauche.
+
+## Datenbankserver
+
+Für den Datenbankserver benutze ich MariaDB. Da Django SQLite benutzt, muss ich dessen Daten mit `py manage.py dumpdata`
+exportieren, und diese dann in mariadb einfügen und migrieren. In der Theorie ist das sehr einfach.
+
+Den Datenbankserver habe ich in einem Docker Container erstellt. Diese hat eine statische IP-Adresse, damit der
+Web-Server mit der Datenbank kommunizieren kann, auch wenn der Container neu gestartet wird.
+
+Zum Testen habe ich einen phpmyadmin container erstellt, um Daten von Django einfach zu importieren.
+
+## Webserver
+
+Mithilfe von apache2 konnte ich einen einfachen Webserver erstellen. Das docker-compose file habe ich so geschrieben,
+dass der 80er Port / der HTTP Port geöffnet ist. 
+
+## Backupserver
+
+Für den Backupserver habe ich einen separaten Dockerserver auf einem Ubuntu Betriebssystem aufgesetzt.
