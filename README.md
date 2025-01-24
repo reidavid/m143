@@ -42,15 +42,19 @@ die Produkte des Kleiderladens. Mit dem Rest-Framework für Django habe ich dies
 Die Datenbank wollte ich nicht auf dem Web-Server betreiben, sondern es sollte auf einem separaten DB-Server ablaufen.
 
 In der Webseite selbst sollte man Accounts haben, also sich einloggen, ausloggen und registrieren können. Diese
-Funktion war bereits in Django programmiert worden, also musste ich diese nur mit der Template Sprache in die
+Funktion war bereits in Django programmiert worden, also musste ich diese nur mit der Templatesprache in die
 HTML-Seiten einfügen. Zu einer gewöhnlichen Seite, die Kleider verkauft, gehören auch viele DB-Modelle / Objekte.
 
 ## Dockerserver
 
-Um die Infrastruktur simpel zu behalten, arbeite ich mit zwei Dockerservern / Ein Server, der Docker und Portainer installiert hat und
-worauf Container für die Datenbank und für die Webseite erstellt werden. Der Andere Dockerserver dient zu Backupzwecken. Auf dem Backup Dockerserver werde ich Der Vorteil dieses Vorgehens ist, dass ich dann nur bei einem Server einen Backup durchführen
-muss und dass ich auch dynamisch nach Lust und Laune auch zusätzliche Container erstellen, falls ich beispielsweise
-einen Mailserver brauche.
+Um die Infrastruktur simpel zu behalten, arbeite ich mit zwei Dockerservern / Ein Server, der Docker und Portainer  
+installiert hat und worauf Container für die Datenbank und für die Webseite erstellt werden. Der Andere Dockerserver
+dient zu Backupzwecken.
+Der Vorteil dieses Vorgehens ist, dass ich dann nur bei einem Server ein Backup durchführen muss und dass ich nach Lust
+und Laune auch zusätzliche Container erstellen kann, falls ich beispielsweise einen Mailserver brauche.
+Auf dem Backup Dockerserver erstelle ich eine Datenbank für das Backup der Produktiv-Datenbank und alle Django Apps.
+
+![img.png](srvdir.png)
 
 ## Datenbankserver
 
@@ -65,8 +69,45 @@ Zum Testen habe ich einen phpmyadmin container erstellt, um Daten von Django ein
 ## Webserver
 
 Mithilfe von apache2 konnte ich einen einfachen Webserver erstellen. Das docker-compose file habe ich so geschrieben,
-dass der 80er Port / der HTTP Port geöffnet ist. 
+dass der 80er Port / der HTTP Port geöffnet ist. Somit kann man für Test Zwecke über die IP-Adresse auf den Server
+zugreifen, solange man sich im Netzwerk befindet.
 
 ## Backupserver
 
-Für den Backupserver habe ich einen separaten Dockerserver auf einem Ubuntu Betriebssystem aufgesetzt.
+Für den Backupserver habe ich einen separaten Dockerserver auf einem Debian Betriebssystem aufgesetzt.
+
+## TrueNAS Backup
+
+Um noch einen Speicherort zu haben, wo Daten gesichert sind, habe ich mich für einen TrueNAS Backup entschieden. Auf
+diesem sollte dann alle wichtigen Kundendaten, Produkte und der Sourcecode der Webseite und der Datenbank gespeichert
+werden.
+
+
+
+## Gitlab Container Registry Backup
+
+# Auswertung
+
+Meiner Meinung nach habe ich dieses Projekt gut abgeschlossen und bin sehr zufrieden mit meinem Endresultat.
+
+## Backup
+
+## Funktionalität
+
+# Reflexion
+
+Rückblickend bin ich sehr zufrieden mit diesem Projekt. Im Laufe des Vorgangs gab es einige Rückschläge, die mich dazu
+führten den Plan umzudenken, ein paar Schritte zurückzukehren und diese zu wiederholen oder sogar Ideen vollständig zu
+streichen, weil diese entweder nicht im Zeitraum des Projekts passten oder diese Ideen zu kompliziert waren umzusetzen.
+Im Folge eines Rückschlags versuchte ich immer motiviert zu sein und am Ball zu bleiben, damit ich mein Projekt
+möglichst effizient und zeitgerecht fortsetzen konnte. Da ich jedoch Frameworks und Systeme gewählt haben, die gut
+miteinander fungieren, konnte ich mich recht gut durch das Projekt navigieren.
+
+Letztendlich war mein Ziel jedoch, nicht nur die mir bereits bekannten Methoden und Software anzuwenden, sondern auch
+neues zu lernen. Beispielsweise habe ich konstant und ohne Pause an der Webseite mit Django im Betrieb gearbeitet (damit
+ich meinen Fokus in der Schule hauptsächlich dem Backup richten kann). Bei der Kreierung einer Webseite mithilfe Django
+habe ich massiv viel gelernt über die Model struktur, URL Routing, Views, Forms und vieles mehr, da Django ein
+umfangreiches Framework ist.
+
+Persönlich bin ich sehr stolz auf meine errungenen Erkenntnisse währenddessen und hoffe in der Zukunft mehr über Backups
+und Datensicherheiten im Detail zu lernen. 
