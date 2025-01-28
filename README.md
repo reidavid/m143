@@ -25,7 +25,7 @@ Datenverlustes die Daten wiederherstellen zu können.
 
 # Infrastruktur
 
-## Dockerserver
+## Dockerserver (Produktiv)
 
 | Einstellung   | Wert |
 |---------------|------|
@@ -38,11 +38,27 @@ Datenverlustes die Daten wiederherstellen zu können.
 Um die Infrastruktur simpel zu behalten, arbeite ich mit zwei Dockerservern / Ein Server, der Docker und Portainer  
 installiert hat und worauf Container für die Datenbank und für die Webseite erstellt werden. Der Andere Dockerserver
 dient zu Backupzwecken.
-Der Vorteil dieses Vorgehens ist, dass ich dann nur bei einem Server ein Backup durchführen muss und dass ich nach Lust
-und Laune auch zusätzliche Container erstellen kann, falls ich beispielsweise einen Mailserver brauche.
-Auf dem Backup Dockerserver erstelle ich eine Datenbank für das Backup der Produktiv-Datenbank und alle Django Apps.
+
+Der Vorteil dieses Vorgehens ist, dass ich dann nur bei einem Server ein Backup durchführen muss und nach Lust und Laune
+auch zusätzliche Container erstellen kann, falls ich beispielsweise einen Mailserver brauche.
 
 ![img.png](srvdir.png)
+
+## Dockerserver (Backup)
+
+| Einstellung   | Wert |
+|---------------|------|
+| Memory        | 4GB  |
+| Prozessoren   | 2    |
+| Speicherplatz | 40GB |
+
+### Details
+
+Auf dem Backup Dockerserver erstelle ich ebenfalls eine Datenbank für das Backup der Produktiv-Datenbank. Ich erstelle
+auch einen Container für alle wichtigen Daten / einen Fileserver als Container. In diesem speichere ich beispielsweise
+alle Django Apps.
+
+Unter dem Abschnitt Backup wird dieser Prozess im Detail beschrieben.
 
 ## Datenbankserver (container)
 
@@ -63,7 +79,7 @@ services:
     container_name: mariadb
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root_password  # Set the root password
+      MYSQL_ROOT_PASSWORD: /run/secrets/db_root_password  # Set the root password
       MYSQL_DATABASE: clothingstore_db          # Initial database to create
       MYSQL_USER: db_user            # Username for the database
       MYSQL_PASSWORD: db_password    # Password for the user
@@ -74,6 +90,10 @@ services:
     networks:
       mariadb_net:
         ipv4_address: 172.29.1.2
+    secrets:
+      - db_root_password
+      - db_password
+      - db_user
 
 volumes:
   mariadb_data:
@@ -84,15 +104,28 @@ networks:
     ipam:
       config:
         - subnet: 172.29.1.0/24
+
+secrets:
+  db_root_password:
+    environment: DB_ROOT_PASSWORD
+  db_password:
+    environment: DB_PASSWORD
+  db_user:
+    environment: DB_USER
 ```
 
 ### Details
 
-Für den Datenbankserver benutze ich MariaDB. Da Django SQLite benutzt, muss ich dessen Daten mit `py manage.py dumpdata`
-exportieren, und diese dann in mariadb einfügen und migrieren. In der Theorie ist das sehr einfach.
+Für den Datenbankserver benutze ich MariaDB. Den Datenbankserver habe ich in einem Docker Container erstellt. Diese hat
+eine statische IP-Adresse, damit der Web-Server mit der Datenbank kommunizieren kann, auch wenn der Container neu
+gestartet wird.
 
-Den Datenbankserver habe ich in einem Docker Container erstellt. Diese hat eine statische IP-Adresse, damit der
-Web-Server mit der Datenbank kommunizieren kann, auch wenn der Container neu gestartet wird.
+Die Anmeldeinformationen zur Datenbank sind als Umgebungsvariablen gespeichert, damit diese nicht direkt in das
+docker-compose hereingeschrieben werden müssen.
+
+Da Django SQLite benutzt, muss ich dessen Daten mit `py manage.py dumpdata` exportieren, und diese dann in mariadb
+einfügen und migrieren. Das Format der exportierten Daten ist standartweise in einem JSON-Format. Jedoch müssen sie
+entweder in der Sprache von SQL sein oder CSV-Formatiert, damit sie in MariaDB importiert werden können.
 
 Zum Testen habe ich einen phpmyadmin container erstellt, um Daten von Django einfach zu importieren.
 
@@ -152,23 +185,36 @@ kann und in die Produktion einsteigen kann.
 In die Django-Seite wollte ich eine API integrieren, damit man die zugänglichen Daten abrufen kann wie beispielsweise
 die Produkte des Kleiderladens. Mit dem Rest-Framework für Django habe ich dies einfach umsetzen können.
 
-Die Datenbank wollte ich nicht auf dem Web-Server betreiben, sondern es sollte auf einem separaten DB-Server ablaufen.
-
 In der Webseite selbst sollte man Accounts haben, also sich einloggen, ausloggen und registrieren können. Diese
 Funktion war bereits in Django programmiert worden, also musste ich diese nur mit der Templatesprache in die
 HTML-Seiten einfügen. Zu einer gewöhnlichen Seite, die Kleider verkauft, gehören auch viele DB-Modelle / Objekte.
 
-## Backup
+Die Datenbank wollte ich nicht auf dem Web-Server betreiben, sondern es sollte auf einem separaten DB-Server ablaufen.
+Da die Datenbank von Django Standardweise auf SQLite lauft und ich die Datenbank auf dem Datenbankserver mit
+MariaDB betreiben möchte, muss ich eine Migration durchführen, die Daten dumpen und diese dann anpassen, sodass sie in
+MariaDB eingefügt werden können.
 
-Für den Backupserver habe ich einen separaten Dockerserver auf einem Debian Betriebssystem aufgesetzt.
+## Datenbank
+
+# Backup
+
+Für den Backupserver habe ich einen separaten Dockerserver auf einem Debian Betriebssystem aufgesetzt. Diesen benutze
+ich dann, um die Images, die Django-Applikationen mitsamt Source-Code und die Daten der Datenbank zu speichern.
+
+## Dockerserver
 
 ## TrueNAS Backup
 
-Um noch einen Speicherort zu haben, wo Daten gesichert sind, habe ich mich für einen TrueNAS Backup entschieden. Auf
-diesem sollte dann alle wichtigen Kundendaten, Produkte und der Sourcecode der Webseite und der Datenbank gespeichert
-werden.
+Um einen weiteren Speicherort zu haben, auf welchem Daten gesichert sind, habe ich mich für einen TrueNAS Backup
+entschieden. Auf diesem sollte dann alle wichtigen Kundendaten, Produkte und der Sourcecode der Webseite und der
+Datenbank gespeichert werden.
 
 ## Gitlab Container Registry Backup
+
+Bei einer Umgebung, in der Hauptsächlich Docker benutzt wird, arbeitet man auch mit vielen Images. Damit diese auch
+einen Ablageort bekommen, werde ich diese in einen Gitlab Container Registry speichern. Die Gitlab Container Registry
+Funktion ist vollkommen integriert mit Gitlab. Bei einem Backup kann man also mithilfe des Gitlab CI das Image von einer
+Remote Quelle vollkommen und problemlos wiederhergestellt werden.
 
 # Auswertung
 
