@@ -57,22 +57,7 @@ installiert hat und worauf Container für die Datenbank und für die Webseite er
 dient zu Backupzwecken.
 Der Vorteil dieses Vorgehens ist, dass ich dann nur bei einem Server ein Backup durchführen muss und dass ich nach Lust
 und Laune auch zusätzliche Container erstellen kann, falls ich beispielsweise einen Mailserver brauche.
-
 Auf dem Backup Dockerserver erstelle ich eine Datenbank für das Backup der Produktiv-Datenbank und alle Django Apps.
-
-Nebenbei, auch wenn das nicht in einer produktiven Umgebung gehört, habe ich einige Container erstellt die zur Kontrolle
-und Tests der Datenbank dienen.
-
-Zusammenfassend habe ich folgende Container erstellt.
-
-1. Datenbank mariadb
-    - beinhaltet daten für den "fashionstore"
-2. Webserver/container apache
-    - für die Webseite des "fashionstores"
-3. phpmyadmin
-    - zur kontrolle und Testdurchführung bei der Datenbank
-4. portainer
-    - zur vereinfachten Verwaltung der Container
 
 ![img.png](srvdir.png)
 
@@ -95,8 +80,8 @@ services:
     container_name: mariadb
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root_password  # Set the root password
-      MYSQL_DATABASE: fashionstore          # Initial database to create
+      MYSQL_ROOT_PASSWORD: /run/secrets/db_root_password  # Set the root password
+      MYSQL_DATABASE: clothingstore_db          # Initial database to create
       MYSQL_USER: db_user            # Username for the database
       MYSQL_PASSWORD: db_password    # Password for the user
     ports:
@@ -106,6 +91,10 @@ services:
     networks:
       mariadb_net:
         ipv4_address: 172.29.1.2
+    secrets:
+      - db_root_password
+      - db_password
+      - db_user
 
 volumes:
   mariadb_data:
@@ -116,15 +105,28 @@ networks:
     ipam:
       config:
         - subnet: 172.29.1.0/24
+
+secrets:
+  db_root_password:
+    environment: DB_ROOT_PASSWORD
+  db_password:
+    environment: DB_PASSWORD
+  db_user:
+    environment: DB_USER
 ```
 
 ### Details
 
-Für den Datenbankserver benutze ich MariaDB. Da Django SQLite benutzt, muss ich dessen Daten mit `py manage.py dumpdata`
-exportieren, und diese dann in mariadb einfügen und migrieren. In der Theorie ist das sehr einfach.
+Für den Datenbankserver benutze ich MariaDB. Den Datenbankserver habe ich in einem Docker Container erstellt. Diese hat
+eine statische IP-Adresse, damit der Web-Server mit der Datenbank kommunizieren kann, auch wenn der Container neu
+gestartet wird.
 
-Den Datenbankserver habe ich in einem Docker Container erstellt. Diese hat eine statische IP-Adresse, damit der
-Web-Server mit der Datenbank kommunizieren kann, auch wenn der Container neu gestartet wird.
+Die Anmeldeinformationen zur Datenbank sind als Umgebungsvariablen gespeichert, damit diese nicht direkt in das
+docker-compose hereingeschrieben werden müssen.
+
+Da Django SQLite benutzt, muss ich dessen Daten mit `py manage.py dumpdata` exportieren, und diese dann in mariadb
+einfügen und migrieren. Das Format der exportierten Daten ist standartweise in einem JSON-Format. Jedoch müssen sie
+entweder in der Sprache von SQL sein oder CSV-Formatiert, damit sie in MariaDB importiert werden können.
 
 Zum Testen habe ich einen phpmyadmin container erstellt, um Daten von Django einfach zu importieren.
 
@@ -262,6 +264,12 @@ In der Webseite selbst sollte man Accounts haben, also sich einloggen, ausloggen
 Funktion war bereits in Django programmiert worden, also musste ich diese nur mit der Templatesprache in die
 HTML-Seiten einfügen. Zu einer gewöhnlichen Seite, die Kleider verkauft, gehören auch viele DB-Modelle / Objekte.
 
+Die Datenbank wollte ich nicht auf dem Web-Server betreiben, sondern es sollte auf einem separaten DB-Server ablaufen.
+Da die Datenbank von Django Standardweise auf SQLite lauft und ich die Datenbank auf dem Datenbankserver mit
+MariaDB betreiben möchte, muss ich eine Migration durchführen, die Daten dumpen und diese dann anpassen, sodass sie in
+MariaDB eingefügt werden können.
+
+## Datenbank
 ![img_1.png](img_1.png)
 
 ![img_4.png](img_4.png)
@@ -270,13 +278,18 @@ Administrative Übersicht
 
 # Backup
 
-Für den Backupserver habe ich einen separaten Dockerserver auf einem Debian Betriebssystem aufgesetzt.
+# Backup
+
+Für den Backupserver habe ich einen separaten Dockerserver auf einem Debian Betriebssystem aufgesetzt. Diesen benutze
+ich dann, um die Images, die Django-Applikationen mitsamt Source-Code und die Daten der Datenbank zu speichern.
+
+## Dockerserver
 
 ## TrueNAS Backup
 
-Um noch einen Speicherort zu haben, wo Daten gesichert sind, habe ich mich für einen TrueNAS Backup entschieden. Auf
-diesem sollte dann alle wichtigen Kundendaten, Produkte und der Sourcecode der Webseite und der Datenbank gespeichert
-werden.
+Um einen weiteren Speicherort zu haben, auf welchem Daten gesichert sind, habe ich mich für einen TrueNAS Backup
+entschieden. Auf diesem sollte dann alle wichtigen Kundendaten, Produkte und der Sourcecode der Webseite und der
+Datenbank gespeichert werden.
 
 ![img.png](img.png)
 
@@ -310,6 +323,11 @@ Ich hatte auch die Möglichkeit, einen SMB-Share zu erstellen, jedoch benötigte
 hatte.
 
 ## Gitlab Container Registry Backup
+
+Bei einer Umgebung, in der Hauptsächlich Docker benutzt wird, arbeitet man auch mit vielen Images. Damit diese auch
+einen Ablageort bekommen, werde ich diese in einen Gitlab Container Registry speichern. Die Gitlab Container Registry
+Funktion ist vollkommen integriert mit Gitlab. Bei einem Backup kann man also mithilfe des Gitlab CI das Image von einer
+Remote Quelle vollkommen und problemlos wiederhergestellt werden.
 
 Da die Docker-Container für den Betrieb der Webseite und der Datenbank essenziell sind, habe ich eine Backup-Strategie
 für die Container-Images in GitLab Container Registry implementiert. Dies stellt sicher, dass alle notwendigen Images
